@@ -33,6 +33,15 @@ jobs:
       - name: Build derper binaries
         run: |
           mkdir -p dist
+          VERSION="${{ steps.version.outputs.VERSION }}"
+
+          # 创建临时 Go 模块以拉取 tailscale 依赖
+          TMPMOD=$(mktemp -d)
+          trap 'rm -rf "$TMPMOD"' EXIT
+          cd "$TMPMOD"
+          go mod init build_derper
+          go get tailscale.com/cmd/derper@v${VERSION}
+
           PLATFORMS=(
             "linux/amd64"
             "linux/arm64"
@@ -51,10 +60,10 @@ jobs:
               GOARCH_LABEL="$ARCH"
               GOARM=""
             fi
-            OUTPUT="dist/derper-${OS}-${GOARCH_LABEL}"
+            OUTPUT="${GITHUB_WORKSPACE}/dist/derper-${OS}-${GOARCH_LABEL}"
             echo "Building $OUTPUT ..."
             GOOS="$OS" GOARCH="$ARCH" GOARM="$GOARM" \
-              go build -trimpath -ldflags="-s -w -X main.version=${{ steps.version.outputs.VERSION }}" \
+              go build -trimpath -ldflags="-s -w" \
               -o "$OUTPUT" \
               tailscale.com/cmd/derper
           done
